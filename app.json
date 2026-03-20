@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "Mandala",
+    "slug": "mandala-app",
+    "scheme": "mandala",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
