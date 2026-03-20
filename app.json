@@ -3,18 +3,40 @@
     "name": "Mandala",
     "slug": "mandala-app",
     "scheme": "mandala",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router"
+    ],
     "experiments": {
       "typedRoutes": true
     },
-    "deepLinks": ["mandala://"],
+    "deepLinks": [
+      "mandala://"
+    ],
     "extra": {
       "router": {
         "origin": false
+      },
+      "eas": {
+        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
       }
+    },
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#0F0F1A"
+      },
+      "package": "com.mandala.app"
+    },
+    "ios": {
+      "bundleIdentifier": "com.mandala.app",
+      "supportsTablet": false
     }
   }
 }
