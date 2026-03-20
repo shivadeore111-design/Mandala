@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Mandala",
-    "slug": "mandala-app",
+    "slug": "mandala",
     "scheme": "mandala",
     "version": "1.0.0",
     "orientation": "portrait",
