@@ -5,28 +5,22 @@
     "scheme": "mandala",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
-    "plugins": [
-      "expo-router"
-    ],
+    "splash": {
+      "image": "./assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F0F1A"
+    },
+    "plugins": ["expo-router"],
     "experiments": {
       "typedRoutes": true
     },
-    "deepLinks": [
-      "mandala://"
-    ],
     "extra": {
-      "router": {
-        "origin": false
-      },
-      "eas": {
-      "projectId": "2feb727a-042a-40f6-b70f-431dd20bfb5a"
-      }
+      "router": { "origin": false },
+      "eas": { "projectId": "2feb727a-042a-40f6-b70f-431dd20bfb5a" }
     },
-    "platforms": [
-      "ios",
-      "android"
-    ],
+    "platforms": ["ios", "android"],
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
@@ -36,7 +30,8 @@
     },
     "ios": {
       "bundleIdentifier": "com.mandala.app",
-      "supportsTablet": false
+      "supportsTablet": false,
+      "icon": "./assets/images/icon.png"
     }
   }
 }
