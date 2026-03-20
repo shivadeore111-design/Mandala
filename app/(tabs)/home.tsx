@@ -1,19 +1,45 @@
-import { useMemo } from 'react';
-import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { FlatList, Pressable, RefreshControl, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 
 import { MandalaCard } from '@/components/mandala/MandalaCard';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { useActiveMandalas } from '@/hooks/useMandala';
+import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { COLORS } from '@/utils/colors';
+
+type DailyContemplation = {
+  quote: string;
+  reflection: string;
+  journal_prompt: string;
+};
 
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
   const mandalasQuery = useActiveMandalas();
+  const [expanded, setExpanded] = useState(false);
+
+  const contemplationQuery = useQuery({
+    queryKey: ['daily-contemplation', new Date().toISOString().slice(0, 10)],
+    queryFn: async () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const { data, error } = await supabase
+        .from('daily_contemplations')
+        .select('quote, reflection, journal_prompt')
+        .eq('contemplation_date', today)
+        .maybeSingle();
+      if (error) throw error;
+      return data as DailyContemplation | null;
+    }
+  });
 
   const name = useMemo(() => user?.user_metadata?.full_name?.split(' ')[0] ?? 'Seeker', [user]);
+
+  const contemplation = contemplationQuery.data ?? null;
 
   return (
     <ScrollView
@@ -22,6 +48,24 @@ export default function HomeScreen() {
       refreshControl={<RefreshControl refreshing={mandalasQuery.isRefetching} onRefresh={mandalasQuery.refetch} tintColor={COLORS.PRIMARY} />}
     >
       <Text style={styles.header}>{`Good morning, ${name} 🙏`}</Text>
+
+      {contemplation ? (
+        <Card>
+          <Pressable onPress={() => setExpanded((prev) => !prev)}>
+            <Text style={styles.sectionTitle}>Daily Contemplation</Text>
+            <Text style={styles.quote} numberOfLines={expanded ? undefined : 2}>“{contemplation.quote}”</Text>
+            {expanded ? <Text style={styles.reflection}>{contemplation.reflection}</Text> : null}
+          </Pressable>
+          <View style={styles.contemplationActions}>
+            <Button title="Share" variant="secondary" onPress={() => Share.share({ message: contemplation.quote })} style={{ flex: 1 }} />
+            <Button
+              title="Write about this →"
+              onPress={() => router.push(`/journal/new?prompt=${encodeURIComponent(contemplation.journal_prompt ?? '')}`)}
+              style={{ flex: 1 }}
+            />
+          </View>
+        </Card>
+      ) : null}
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>My Active Mandalas</Text>
@@ -48,7 +92,7 @@ export default function HomeScreen() {
 
       <Text style={styles.sectionTitle}>Quick actions</Text>
       <View style={styles.quickRow}>
-        <QuickAction label="Journal" onPress={() => {}} />
+        <QuickAction label="Journal" onPress={() => router.push('/journal')} />
         <QuickAction label="Calendar" onPress={() => router.push('/(tabs)/calendar')} />
         <QuickAction label="Find Seekers" onPress={() => router.push('/(tabs)/community')} />
         <QuickAction label="New Mandala" onPress={() => router.push('/mandala/new')} />
@@ -90,6 +134,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 18
   },
+  quote: { color: COLORS.ACCENT, marginTop: 8, fontStyle: 'italic' },
+  reflection: { color: COLORS.TEXT_MUTED, marginTop: 8, lineHeight: 20 },
+  contemplationActions: { flexDirection: 'row', gap: 8, marginTop: 10 },
   link: {
     color: COLORS.PRIMARY,
     fontWeight: '600'
