@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
+import { Link } from 'expo-router';
 import {
   ActivityIndicator,
   FlatList,
@@ -23,6 +24,7 @@ import { Card } from '@/components/ui/Card';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { COLORS } from '@/utils/colors';
+import { useSubscription } from '@/hooks/useSubscription';
 
 type TabKey = 'feed' | 'circles' | 'nearby';
 
@@ -53,6 +55,8 @@ export default function CommunityScreen() {
   const [content, setContent] = useState('');
   const [postType, setPostType] = useState<'text' | 'question' | 'reflection'>('text');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [paywallVisible, setPaywallVisible] = useState(false);
+  const { isGuide } = useSubscription();
 
   const postsQuery = useInfiniteQuery({
     queryKey: ['community-posts', user?.id],
@@ -269,8 +273,8 @@ export default function CommunityScreen() {
       <Button
         title="Create Circle"
         onPress={() => {
-          if (profileQuery.data !== 'guide') {
-            alert('Create Circle is available on the Guide tier.');
+          if (!isGuide) {
+            setPaywallVisible(true);
             return;
           }
           alert('Create Circle flow coming soon.');
@@ -296,6 +300,7 @@ export default function CommunityScreen() {
         </Card>
       ))}
       <Text style={styles.sectionTitle}>Upcoming Satsangs Near You</Text>
+      <Button title="Create Satsang" onPress={() => { if (!isGuide) { setPaywallVisible(true); return; } alert('Create Satsang flow coming soon.'); }} />
       {(satsangsQuery.data ?? []).length ? (
         (satsangsQuery.data ?? []).map((event) => (
           <Card key={event.id}>
@@ -319,6 +324,19 @@ export default function CommunityScreen() {
       </View>
 
       <View style={{ flex: 1 }}>{activeTab === 'feed' ? renderFeed() : activeTab === 'circles' ? renderCircles() : renderNearby()}</View>
+
+      <Modal visible={paywallVisible} transparent animationType="slide" onRequestClose={() => setPaywallVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <Card style={styles.paywallCard}>
+            <Text style={styles.sectionTitle}>Guide Feature</Text>
+            <Text style={styles.emptyText}>Upgrade to Guide to create circles and satsangs.</Text>
+            <Link href="/settings/subscription" asChild>
+              <Button title="Upgrade now" />
+            </Link>
+            <Button title="Maybe later" variant="secondary" onPress={() => setPaywallVisible(false)} />
+          </Card>
+        </View>
+      </Modal>
 
       <Modal visible={createVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
@@ -394,6 +412,8 @@ const styles = StyleSheet.create({
   actionText: { color: COLORS.TEXT_MUTED, fontWeight: '600' },
   fab: { position: 'absolute', right: 16, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: COLORS.PRIMARY, justifyContent: 'center', alignItems: 'center' },
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: '#00000088' },
+  modalBackdrop: { flex: 1, backgroundColor: '#00000088', justifyContent: 'center', alignItems: 'center', padding: 16 },
+  paywallCard: { width: '94%', gap: 8 },
   modalCard: { backgroundColor: COLORS.SURFACE, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 16, gap: 12 },
   modalInput: { minHeight: 120, backgroundColor: COLORS.BACKGROUND, borderRadius: 12, padding: 12, color: COLORS.TEXT, borderWidth: 1, borderColor: '#2A2A4E' },
   rowGap: { flexDirection: 'row', gap: 8 },

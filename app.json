@@ -9,6 +9,12 @@
     "plugins": ["expo-router"],
     "experiments": {
       "typedRoutes": true
+    },
+    "deepLinks": ["mandala://"],
+    "extra": {
+      "router": {
+        "origin": false
+      }
     }
   }
 }
