@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "Mandala",
+    "slug": "mandala",
+    "scheme": "mandala",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F0F1A"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": { "origin": false },
+      "eas": { "projectId": "2feb727a-042a-40f6-b70f-431dd20bfb5a" }
+    },
+    "platforms": ["ios", "android", "web"],
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#0F0F1A"
+      },
+      "package": "com.mandala.app"
+    },
+    "ios": {
+      "bundleIdentifier": "com.mandala.app",
+      "supportsTablet": false,
+      "icon": "./assets/images/icon.png"
+    }
+  }
+}
