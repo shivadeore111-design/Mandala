@@ -12,15 +12,25 @@
       "resizeMode": "contain",
       "backgroundColor": "#0F0F1A"
     },
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router"
+    ],
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
-      "router": { "origin": false },
-      "eas": { "projectId": "2feb727a-042a-40f6-b70f-431dd20bfb5a" }
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "2feb727a-042a-40f6-b70f-431dd20bfb5a"
+      }
     },
-    "platforms": ["ios", "android"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",

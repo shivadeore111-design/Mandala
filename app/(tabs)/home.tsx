@@ -1,118 +1,113 @@
-import { useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Svg, { Circle, Line } from 'react-native-svg';
 
-import { MandalaCard } from '@/components/mandala/MandalaCard';
-import { ShareCard } from '@/components/mandala/ShareCard';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { useActiveMandalas } from '@/hooks/useMandala';
-import { useSubscription } from '@/hooks/useSubscription';
-import { captureAndShare } from '@/lib/share';
+import { useTheme } from '@/hooks/useTheme';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
-import { COLORS } from '@/utils/colors';
-
-type DailyContemplation = { quote: string; reflection: string; journal_prompt: string };
+import type { DailyContemplation, Mandala, SpiritualEvent } from '@/types';
 
 export default function HomeScreen() {
-  const router = useRouter();
-  const { user } = useAuthStore();
-  const { isPremium } = useSubscription();
-  const mandalasQuery = useActiveMandalas();
-  const [expanded, setExpanded] = useState(false);
-  const shareRef = useRef(null);
+  const theme = useTheme();
+  const qc = useQueryClient();
+  const { user, profile } = useAuthStore();
 
-  const contemplationQuery = useQuery({
-    queryKey: ['daily-contemplation', new Date().toISOString().slice(0, 10)],
-    staleTime: 300_000,
+  const { data: mandalas = [] } = useQuery({
+    queryKey: ['home-mandalas', user?.id],
+    enabled: !!user,
     queryFn: async () => {
-      const today = new Date().toISOString().slice(0, 10);
-      const { data, error } = await supabase.from('daily_contemplations').select('quote, reflection, journal_prompt').eq('contemplation_date', today).maybeSingle();
-      if (error) throw error;
-      return data as DailyContemplation | null;
-    }
+      const { data } = await supabase.from('mandalas').select('*, sadhanas(*)').eq('user_id', user!.id).eq('status', 'active');
+      return (data ?? []) as Mandala[];
+    },
   });
 
-  const name = useMemo(() => user?.user_metadata?.full_name?.split(' ')[0] ?? 'Seeker', [user]);
-  const contemplation = contemplationQuery.data ?? null;
+  const { data: contemplation } = useQuery({
+    queryKey: ['today-contemplation'],
+    queryFn: async () => {
+      const date = new Date().toISOString().slice(0, 10);
+      const { data } = await supabase.from('daily_contemplations').select('*').lte('date', date).order('date', { ascending: false }).limit(1).maybeSingle();
+      return data as DailyContemplation | null;
+    },
+  });
+
+  const { data: events = [] } = useQuery({
+    queryKey: ['events'],
+    queryFn: async () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const { data } = await supabase.from('spiritual_events').select('*').gte('event_date', today).order('event_date').limit(6);
+      return (data ?? []) as SpiritualEvent[];
+    },
+  });
+
+  const checkinMutation = useMutation({
+    mutationFn: async ({ mandalaId, session }: { mandalaId: string; session: 'morning' | 'evening' }) => {
+      await supabase.from('mandala_checkins').insert({ mandala_id: mandalaId, user_id: user!.id, session, date: new Date().toISOString().slice(0, 10) });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['home-mandalas'] }),
+  });
+
+  const top = mandalas[0];
+  const progress = top ? Math.min(top.day_count / 42, 1) : 0;
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={mandalasQuery.isRefetching} onRefresh={mandalasQuery.refetch} tintColor={COLORS.PRIMARY} />}
-    >
-      <Text style={styles.header}>{`Good morning, ${name} 🙏`}</Text>
-      <View collapsable={false} ref={shareRef}><ShareCard practiceName="Mandala Journey" dayLabel="Day X of 40" streak={mandalasQuery.data?.[0]?.current_streak ?? 0} showWatermark={!isPremium} /></View>
+    <ScrollView style={{ flex: 1, backgroundColor: theme.colors.background }} contentContainerStyle={styles.container}>
+      <Text style={[styles.title, { color: theme.colors.text }]}>Namaskaram, {(profile?.full_name ?? profile?.username ?? 'Sadhaka').split(' ')[0]} 🙏</Text>
+      <Text style={[styles.subtitle, { color: theme.colors.text2 }]}>Today's Sadhana</Text>
 
-      {contemplation ? (
-        <Card>
-          <Pressable onPress={() => setExpanded((prev) => !prev)}>
-            <Text style={styles.sectionTitle}>Daily Contemplation</Text>
-            <Text style={styles.quote} numberOfLines={expanded ? undefined : 2}>“{contemplation.quote}”</Text>
-            {expanded ? <Text style={styles.reflection}>{contemplation.reflection}</Text> : null}
-          </Pressable>
-          <View style={styles.contemplationActions}>
-            <Button title="Share" variant="secondary" onPress={() => Share.share({ message: contemplation.quote })} style={{ flex: 1 }} />
-            <Button title="Write about this →" onPress={() => router.push(`/journal/new?prompt=${encodeURIComponent(contemplation.journal_prompt ?? '')}`)} style={{ flex: 1 }} />
-          </View>
-        </Card>
-      ) : null}
-
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>My Active Mandalas</Text>
-        <Pressable onPress={() => router.push('/mandala/new')}><Text style={styles.link}>New</Text></Pressable>
+      <View style={[styles.dialWrap, { backgroundColor: theme.colors.surface }, theme.shadow.raised]}>
+        <Svg width={220} height={220}>
+          <Circle cx="110" cy="110" r="98" stroke={theme.colors.border} strokeWidth="10" fill="none" />
+          {Array.from({ length: 60 }).map((_, i) => {
+            const a = (i / 60) * Math.PI * 2;
+            const x1 = 110 + Math.cos(a) * 84;
+            const y1 = 110 + Math.sin(a) * 84;
+            const x2 = 110 + Math.cos(a) * 95;
+            const y2 = 110 + Math.sin(a) * 95;
+            return <Line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={i % 5 === 0 ? theme.colors.orange : theme.colors.text3} strokeWidth={i % 5 === 0 ? 2 : 1} />;
+          })}
+          <Circle cx="110" cy="110" r="75" stroke={theme.colors.orange} strokeWidth="6" strokeDasharray={`${progress * 470}, 470`} strokeLinecap="round" fill="none" rotation="-90" origin="110,110" />
+          <Line x1="110" y1="22" x2="110" y2="40" stroke={theme.colors.danger} strokeWidth="3" />
+        </Svg>
+        <View style={[styles.lcd, { backgroundColor: theme.colors.lcdFace }]}>
+          <Text style={[styles.lcdText, { color: theme.colors.lcdText }]}>DAY {top?.day_count ?? 0}</Text>
+        </View>
       </View>
 
-      {mandalasQuery.data && mandalasQuery.data.length > 0 ? (
-        <FlatList
-          horizontal
-          data={mandalasQuery.data}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <Pressable onLongPress={() => captureAndShare(shareRef, `I am on Day ${item.completed_days} in ${item.practice_name}`)}>
-              <MandalaCard mandala={item} />
-            </Pressable>
-          )}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-          ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
-        />
-      ) : (
-        <View style={styles.emptyState}><Text style={styles.emptyTitle}>No active mandalas yet.</Text><Button title="Start your first Mandala" onPress={() => router.push('/mandala/new')} /></View>
-      )}
+      <View style={styles.statsRow}>{['Mandalas completed', 'Day streak', 'Total days'].map((s, i) => <View key={s} style={[styles.stat, { backgroundColor: theme.colors.surface }, theme.shadow.raised]}><Text style={{ color: theme.colors.text3, fontSize: 12 }}>{s}</Text><Text style={{ color: theme.colors.text, fontSize: 20, fontWeight: '700' }}>{[2, top?.day_count ?? 0, 84][i]}</Text></View>)}</View>
 
-      <Text style={styles.sectionTitle}>Quick actions</Text>
-      <View style={styles.quickRow}>
-        <QuickAction label="Journal" onPress={() => router.push('/journal')} />
-        <QuickAction label="Calendar" onPress={() => router.push('/(tabs)/calendar')} />
-        <QuickAction label="Find Seekers" onPress={() => router.push('/(tabs)/community')} />
-        <QuickAction label="Share Card" onPress={() => captureAndShare(shareRef, 'My mandala progress')} />
+      <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Today's Checklist</Text>
+      {mandalas.map((m) => (
+        <TouchableOpacity key={m.id} style={[styles.checkItem, { backgroundColor: theme.colors.surface }, theme.shadow.raised]} onPress={() => checkinMutation.mutate({ mandalaId: m.id, session: 'morning' })}>
+          <Text style={{ color: theme.colors.text, flex: 1 }}>{m.sadhanas?.name ?? 'Practice'}</Text>
+          <Text style={[styles.badge, { backgroundColor: theme.colors.goldBg, color: theme.colors.gold }]}>{m.session_type === 'both' ? 'Morning / Evening' : m.session_type}</Text>
+        </TouchableOpacity>
+      ))}
+
+      <View style={[styles.contemplation, { backgroundColor: theme.colors.surface2, borderLeftColor: theme.colors.gold }]}>
+        <Text style={{ color: theme.colors.text2, fontWeight: '700' }}>Contemplation</Text>
+        <Text style={{ color: theme.colors.text, marginTop: 6 }}>{contemplation?.quote ?? 'Let every breath become an offering.'}</Text>
+      </View>
+
+      <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Upcoming Events</Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        {events.map((e) => <View key={e.id} style={[styles.eventPill, { backgroundColor: theme.colors.greenBg }]}><Text style={{ color: theme.colors.green }}>{e.name}</Text></View>)}
       </View>
     </ScrollView>
   );
 }
 
-function QuickAction({ label, onPress }: { label: string; onPress: () => void }) {
-  return <Pressable style={styles.quickAction} onPress={onPress}><Text style={styles.quickActionText}>{label}</Text></Pressable>;
-}
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.BACKGROUND },
-  content: { padding: 16, gap: 16, paddingBottom: 24 },
-  header: { color: COLORS.TEXT, fontWeight: '700', fontSize: 28 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { color: COLORS.TEXT, fontWeight: '700', fontSize: 18 },
-  quote: { color: COLORS.ACCENT, marginTop: 8, fontStyle: 'italic' },
-  reflection: { color: COLORS.TEXT_MUTED, marginTop: 8, lineHeight: 20 },
-  contemplationActions: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  link: { color: COLORS.PRIMARY, fontWeight: '600' },
-  listContent: { paddingRight: 4 },
-  emptyState: { backgroundColor: COLORS.SURFACE, borderWidth: 1, borderColor: '#2A2A4E', borderRadius: 16, padding: 16, gap: 10 },
-  emptyTitle: { color: COLORS.TEXT_MUTED },
-  quickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  quickAction: { backgroundColor: COLORS.SURFACE, borderWidth: 1, borderColor: '#2A2A4E', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14 },
-  quickActionText: { color: COLORS.TEXT, fontWeight: '600' }
+  container: { padding: 16, paddingBottom: 120, gap: 10 },
+  title: { fontSize: 28, fontWeight: '700' },
+  subtitle: { fontSize: 16, marginBottom: 6 },
+  dialWrap: { borderRadius: 120, alignItems: 'center', justifyContent: 'center', padding: 18, alignSelf: 'center' },
+  lcd: { position: 'absolute', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8 },
+  lcdText: { fontFamily: 'monospace', letterSpacing: 1.5, fontWeight: '700' },
+  statsRow: { flexDirection: 'row', gap: 8 },
+  stat: { borderRadius: 14, padding: 10, flex: 1 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', marginTop: 12 },
+  checkItem: { borderRadius: 14, padding: 12, flexDirection: 'row', alignItems: 'center' },
+  badge: { fontSize: 11, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 99, textTransform: 'capitalize' },
+  contemplation: { borderLeftWidth: 4, borderRadius: 10, padding: 12, marginTop: 8 },
+  eventPill: { borderRadius: 99, paddingHorizontal: 10, paddingVertical: 6 },
 });

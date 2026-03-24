@@ -17,25 +17,20 @@ let sentryEnabled = false;
 let posthogEnabled = false;
 
 export function initAnalytics() {
-  const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
-  const posthogKey = process.env.EXPO_PUBLIC_POSTHOG_KEY;
-
-  sentryEnabled = Boolean(sentryDsn);
-  posthogEnabled = Boolean(posthogKey);
+  sentryEnabled = false;
+  posthogEnabled = false;
 
   if (__DEV__) {
     console.log('[analytics] init', {
       sentryEnabled,
       posthogEnabled,
-      appVersion: Constants.expoConfig?.version
+      appVersion: Constants.expoConfig?.version,
     });
   }
 }
 
 export function captureEvent(event: EventName, properties?: Record<string, unknown>) {
-  if (__DEV__) {
-    console.log('[analytics:event]', event, properties ?? {});
-  }
+  if (__DEV__) console.log('[analytics:event]', event, properties ?? {});
 }
 
 export function withErrorBoundary<T>(render: () => T): T {

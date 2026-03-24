@@ -1,66 +1,47 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Slot } from 'expo-router';
-import { useEffect } from 'react';
-import { AppState } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
+import { Redirect, Slot, useSegments } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
 
-import { Toast } from '@/components/ui/Toast';
-import { AuthProvider } from '@/hooks/useAuth';
-import { initAnalytics } from '@/lib/analytics';
-import { requestNotificationPermissions } from '@/lib/notifications';
-import { processOfflineQueue } from '@/lib/offlineQueue';
-import { configureRevenueCat } from '@/lib/revenue-cat';
+import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
-import { useUIStore } from '@/stores/uiStore';
-import { COLORS } from '@/utils/colors';
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      staleTime: 60_000
-    }
-  }
-});
+const queryClient = new QueryClient();
 
-function RootShell() {
-  const { user } = useAuthStore();
-  const { showToast } = useUIStore();
+function AuthGate() {
+  const segments = useSegments();
+  const { user, setUser, fetchProfile } = useAuthStore();
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    requestNotificationPermissions();
-    initAnalytics();
-  }, []);
-
-  useEffect(() => {
-    configureRevenueCat(user?.id);
-  }, [user?.id]);
-
-  useEffect(() => {
-    const sub = AppState.addEventListener('change', async (nextState) => {
-      if (nextState === 'active') {
-        const synced = await processOfflineQueue();
-        if (synced > 0) showToast(`Synced ${synced} offline check-ins`, 'success');
-      }
+    supabase.auth.getSession().then(({ data }) => {
+      const sessionUser = data.session?.user ?? null;
+      setUser(sessionUser);
+      if (sessionUser) fetchProfile(sessionUser.id);
+      setReady(true);
     });
-    return () => sub.remove();
-  }, [showToast]);
 
-  return (
-    <>
-      <StatusBar style="light" backgroundColor={COLORS.BACKGROUND} />
-      <Slot />
-      <Toast />
-    </>
-  );
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      const sessionUser = session?.user ?? null;
+      setUser(sessionUser);
+      if (sessionUser) fetchProfile(sessionUser.id);
+    });
+
+    return () => data.subscription.unsubscribe();
+  }, [fetchProfile, setUser]);
+
+  const inAuth = useMemo(() => segments[0] === '(auth)', [segments]);
+
+  if (!ready) return null;
+  if (!user && !inAuth) return <Redirect href="/(auth)/login" />;
+  if (user && inAuth) return <Redirect href="/(tabs)/home" />;
+
+  return <Slot />;
 }
 
 export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <RootShell />
-      </AuthProvider>
+      <AuthGate />
     </QueryClientProvider>
   );
 }

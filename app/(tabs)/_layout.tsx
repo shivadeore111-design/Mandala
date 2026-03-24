@@ -1,36 +1,43 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { Text, View } from 'react-native';
 
-import { COLORS } from '@/utils/colors';
+import { useTheme } from '@/hooks/useTheme';
+
+const tabs = [
+  { name: 'home', label: 'Home', icon: '⌂' },
+  { name: 'sadhana', label: 'Sadhana', icon: '◎' },
+  { name: 'mandala', label: 'Mandala', icon: '📿' },
+  { name: 'journal', label: 'Journal', icon: '✍' },
+  { name: 'gallery', label: 'Gallery', icon: '◇' },
+] as const;
 
 export default function TabsLayout() {
+  const theme = useTheme();
+
   return (
     <Tabs
-      screenOptions={({ route }) => ({
-        headerStyle: { backgroundColor: COLORS.SURFACE },
-        headerTintColor: COLORS.TEXT,
-        sceneStyle: { backgroundColor: COLORS.BACKGROUND },
-        tabBarStyle: { backgroundColor: COLORS.SURFACE, borderTopColor: '#2A2A4E' },
-        tabBarActiveTintColor: COLORS.PRIMARY,
-        tabBarInactiveTintColor: COLORS.TEXT_MUTED,
-        tabBarIcon: ({ color, size }) => {
-          const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
-            home: 'home-outline',
-            community: 'people-outline',
-            challenges: 'flag-outline',
-            calendar: 'calendar-outline',
-            profile: 'person-outline'
-          };
-
-          return <Ionicons name={iconMap[route.name] || 'ellipse-outline'} color={color} size={size} />;
-        }
-      })}
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border, height: 74 },
+        tabBarActiveTintColor: theme.colors.orange,
+        tabBarInactiveTintColor: theme.colors.text3,
+      }}
     >
-      <Tabs.Screen name="home" options={{ title: 'Home' }} />
-      <Tabs.Screen name="community" options={{ title: 'Community' }} />
-      <Tabs.Screen name="challenges" options={{ title: 'Challenges' }} />
-      <Tabs.Screen name="calendar" options={{ title: 'Calendar' }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
+      {tabs.map((tab) => (
+        <Tabs.Screen
+          key={tab.name}
+          name={tab.name}
+          options={{
+            title: tab.label,
+            tabBarIcon: ({ color, focused }) => (
+              <View style={{ alignItems: 'center', gap: 2 }}>
+                <Text style={{ color, fontSize: 16 }}>{tab.icon}</Text>
+                {focused ? <View style={{ width: 6, height: 6, borderRadius: 99, backgroundColor: theme.colors.orange }} /> : null}
+              </View>
+            ),
+          }}
+        />
+      ))}
     </Tabs>
   );
 }
