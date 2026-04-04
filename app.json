@@ -2,46 +2,61 @@
   "expo": {
     "name": "Mandala",
     "slug": "mandala",
-    "scheme": "mandala",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "userInterfaceStyle": "automatic",
+    "scheme": "mandala",
+    "userInterfaceStyle": "dark",
     "splash": {
       "image": "./assets/images/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#0F0F1A"
     },
-    "plugins": [
-      "expo-router"
-    ],
-    "experiments": {
-      "typedRoutes": true
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.mandala.app"
     },
-    "extra": {
-      "router": {
-        "origin": false
-      },
-      "eas": {
-        "projectId": "2feb727a-042a-40f6-b70f-431dd20bfb5a"
-      }
-    },
-    "platforms": [
-      "ios",
-      "android",
-      "web"
-    ],
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#0F0F1A"
       },
-      "package": "com.mandala.app"
+      "package": "com.mandala.app",
+      "versionCode": 1,
+      "permissions": [
+        "NOTIFICATIONS",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ]
     },
-    "ios": {
-      "bundleIdentifier": "com.mandala.app",
-      "supportsTablet": false,
-      "icon": "./assets/images/icon.png"
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#7F77DD"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "updates": {
+      "url": "https://u.expo.dev/2feb727a-042a-40f6-b70f-431dd20bfb5a"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "2feb727a-042a-40f6-b70f-431dd20bfb5a"
+      }
     }
   }
 }

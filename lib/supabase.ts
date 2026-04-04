@@ -1,18 +1,22 @@
+import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
-import { Platform } from 'react-native';
-import 'react-native-url-polyfill/auto';
 
-const supabaseUrl = 'https://feoqghwvmfucsgndqjbt.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZlb3FnaHd2bWZ1Y3NnbmRxamJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwNzkzMzksImV4cCI6MjA4OTY1NTMzOX0.d-JfyoyNxkaKZmZafnnzqxum7HKjj3iWbiINReUO5DI';
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-const storage = Platform.OS === 'web' ? localStorage : AsyncStorage;
+if (!supabaseUrl) {
+  throw new Error('Missing env: EXPO_PUBLIC_SUPABASE_URL');
+}
+if (!supabaseAnonKey) {
+  throw new Error('Missing env: EXPO_PUBLIC_SUPABASE_ANON_KEY');
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage,
+    storage: AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: Platform.OS === 'web',
+    detectSessionInUrl: false,
   },
 });
