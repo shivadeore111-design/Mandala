@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
 import Svg, { Circle, Line, Path } from 'react-native-svg';
 
 import { useTheme } from '@/hooks/useTheme';
-import { supabase } from '@/lib/supabase';
+import { useMandalas, type Mandala } from '@/hooks/useMandala';
 import { useAuthStore } from '@/stores/authStore';
-import type { Mandala } from '@/types';
 
 const iconButton = (type: 'back' | 'play' | 'forward', color: string) => (
   <Svg width={22} height={22} viewBox="0 0 22 22">
@@ -23,20 +21,13 @@ export default function MandalaScreen() {
   const [seconds, setSeconds] = useState(25 * 60);
   const [paused, setPaused] = useState(true);
 
+  const { data: mandalas = [] } = useMandalas();
+
   useEffect(() => {
-    if (!selected || paused) return;
+    if (!user || !selected || paused) return;
     const id = setInterval(() => setSeconds((s) => Math.max(0, s - 1)), 1000);
     return () => clearInterval(id);
-  }, [paused, selected]);
-
-  const { data: mandalas = [] } = useQuery({
-    queryKey: ['mandalas', user?.id],
-    enabled: !!user,
-    queryFn: async () => {
-      const { data } = await supabase.from('mandalas').select('*, sadhanas(*)').eq('user_id', user!.id).eq('status', 'active');
-      return (data ?? []) as Mandala[];
-    },
-  });
+  }, [paused, selected, user]);
 
   const total = 25 * 60;
   const pct = (total - seconds) / total;
@@ -47,18 +38,18 @@ export default function MandalaScreen() {
     <ScrollView style={{ flex: 1, backgroundColor: theme.colors.background }} contentContainerStyle={styles.container}>
       <Text style={[styles.title, { color: theme.colors.text }]}>Active Mandalas</Text>
       {mandalas.map((m) => (
-        <Pressable key={m.id} onPress={() => { setSelected(m); setSeconds((m.sadhanas?.morning_duration_min ?? 25) * 60); setPaused(true); }} style={[styles.card, { backgroundColor: theme.colors.surface }, theme.shadow.raised]}>
-          <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{m.sadhanas?.name ?? 'Practice'}</Text>
+        <Pressable key={m.id} onPress={() => { setSelected(m); setSeconds(25 * 60); setPaused(true); }} style={[styles.card, { backgroundColor: theme.colors.surface }, theme.shadow.raised]}>
+          <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{m.practice_name}</Text>
           <View style={[styles.progressTrack, { backgroundColor: theme.colors.surface2 }]}>
-            <View style={[styles.progressFill, { width: `${(m.day_count / 42) * 100}%`, backgroundColor: theme.colors.orange }]} />
+            <View style={[styles.progressFill, { width: `${(m.completed_days / m.target_days) * 100}%`, backgroundColor: theme.colors.orange }]} />
           </View>
-          <Text style={{ color: theme.colors.text2 }}>Day {m.day_count} / 42</Text>
+          <Text style={{ color: theme.colors.text2 }}>Day {m.completed_days} / {m.target_days}</Text>
         </Pressable>
       ))}
 
       <Modal visible={!!selected} animationType="slide" onRequestClose={() => setSelected(null)}>
         <View style={[styles.modal, { backgroundColor: theme.colors.background }]}>
-          <Text style={[styles.badge, { color: theme.colors.orange, borderColor: theme.colors.orange }]}>MANDALA DAY {selected?.day_count ?? 1}</Text>
+          <Text style={[styles.badge, { color: theme.colors.orange, borderColor: theme.colors.orange }]}>MANDALA DAY {selected?.completed_days ?? 1}</Text>
           <View style={[styles.timerCircle, { backgroundColor: theme.colors.surface }, theme.shadow.raised]}>
             <Svg width={260} height={260}>
               <Circle cx="130" cy="130" r="110" stroke={theme.colors.border} strokeWidth="10" fill="none" />

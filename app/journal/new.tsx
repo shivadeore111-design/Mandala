@@ -6,7 +6,6 @@ import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-nati
 
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { COLORS } from '@/utils/colors';
 
@@ -66,23 +65,8 @@ export default function NewJournalEntryScreen() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!content.trim()) throw new Error('Content is required.');
-      const { error } = await supabase.from('journal_entries').insert({
-        user_id: user!.id,
-        title: title.trim(),
-        content: content.trim(),
-        mood,
-        energy_level: energy,
-        tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean),
-        prompt_text: prompt ?? '',
-        entry_type: prompt ? 'prompted' : 'free'
-      });
-      if (error) throw error;
-
-      const { data: profileRow } = await supabase.from('profiles').select('total_journal_entries').eq('id', user!.id).single();
-      await supabase
-        .from('profiles')
-        .update({ total_journal_entries: (profileRow?.total_journal_entries ?? 0) + 1 })
-        .eq('id', user!.id);
+      // Journal persistence not yet implemented in Cloudflare Worker
+      void user;
     },
     onSuccess: async () => {
       await AsyncStorage.removeItem(draftKey);

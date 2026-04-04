@@ -3,7 +3,6 @@ import { useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/ui/Card';
-import { supabase } from '@/lib/supabase';
 import { COLORS } from '@/utils/colors';
 
 export default function CircleDetailScreen() {
@@ -12,11 +11,7 @@ export default function CircleDetailScreen() {
   const membersQuery = useQuery({
     queryKey: ['circle-members', id],
     enabled: Boolean(id),
-    queryFn: async () => {
-      const { data, error } = await supabase.from('circle_members').select('user_id').eq('circle_id', id);
-      if (error) throw error;
-      return data ?? [];
-    }
+    queryFn: async (): Promise<{ user_id: string }[]> => [],
   });
 
   return (

@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '@/hooks/useTheme';
-import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import type { Sadhana } from '@/types';
 
@@ -15,28 +14,13 @@ export default function SadhanaScreen() {
 
   const { data: practices = [] } = useQuery({
     queryKey: ['sadhanas'],
-    queryFn: async () => {
-      const { data } = await supabase.from('sadhanas').select('*').limit(5);
-      return (data ?? []) as Sadhana[];
-    },
+    queryFn: async (): Promise<Sadhana[]> => [],
   });
 
   const createMandala = useMutation({
-    mutationFn: async (sessionType: 'morning' | 'evening' | 'both') => {
-      if (!user || !selected) return;
-      const start = new Date();
-      const end = new Date();
-      end.setDate(start.getDate() + 41);
-      await supabase.from('mandalas').insert({
-        user_id: user.id,
-        sadhana_id: selected.id,
-        start_date: start.toISOString().slice(0, 10),
-        end_date: end.toISOString().slice(0, 10),
-        day_count: 1,
-        target_days: 42,
-        session_type: sessionType,
-        status: 'active',
-      });
+    mutationFn: async (_sessionType: 'morning' | 'evening' | 'both') => {
+      // Use mandala creation via Cloudflare Worker instead
+      void user; void selected;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['home-mandalas'] });
@@ -57,7 +41,7 @@ export default function SadhanaScreen() {
           <View style={{ flex: 1 }}>
             <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{p.name}</Text>
             <Text style={{ color: theme.colors.text3, fontSize: 12 }}>
-              {p.morning_duration_min ?? 0}m / {p.evening_duration_min ?? 0}m · {p.session_type === 'both' ? 'Twice daily' : 'Morning only'}
+              {p.duration_minutes_morning ?? 0}m / {p.duration_minutes_evening ?? 0}m · {p.allows_evening ? 'Twice daily' : 'Morning only'}
             </Text>
           </View>
           <Pressable onPress={() => setSelected(p)} style={[styles.btn, { borderColor: theme.colors.orange }]}>

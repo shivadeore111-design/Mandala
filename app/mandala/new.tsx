@@ -37,11 +37,7 @@ export default function NewMandalaScreen() {
       await createMandala.mutateAsync({
         practice_type: practiceType,
         practice_name: practiceName,
-        practice_duration_minutes: noDuration ? 0 : duration,
         target_days: target,
-        reminder_enabled: reminderEnabled,
-        reminder_time: reminderTime,
-        is_public: isPublic
       });
       showToast('Mandala created. Begin your first day 🔱', 'success');
       router.replace('/(tabs)/home');

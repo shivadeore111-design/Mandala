@@ -4,7 +4,6 @@ import { useRouter } from 'expo-router';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/ui/Card';
-import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { COLORS } from '@/utils/colors';
 
@@ -19,28 +18,12 @@ export default function JournalIndexScreen() {
   const entriesQuery = useQuery({
     queryKey: ['journal-entries', user?.id],
     enabled: Boolean(user?.id),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('journal_entries')
-        .select('id, title, content, mood, tags, created_at')
-        .eq('user_id', user!.id)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as Entry[];
-    }
+    queryFn: async (): Promise<Entry[]> => [],
   });
 
   const contemplationQuery = useQuery({
     queryKey: ['daily-contemplation-top', new Date().toISOString().slice(0, 10)],
-    queryFn: async () => {
-      const today = new Date().toISOString().slice(0, 10);
-      const { data } = await supabase
-        .from('daily_contemplations')
-        .select('quote, journal_prompt')
-        .eq('contemplation_date', today)
-        .maybeSingle();
-      return data as Contemplation | null;
-    }
+    queryFn: async (): Promise<Contemplation | null> => null,
   });
 
   return (

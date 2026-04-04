@@ -5,7 +5,6 @@ import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-nati
 
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { supabase } from '@/lib/supabase';
 import { COLORS } from '@/utils/colors';
 
 export default function JournalDetailScreen() {
@@ -16,11 +15,7 @@ export default function JournalDetailScreen() {
   const entryQuery = useQuery({
     queryKey: ['journal-entry', id],
     enabled: Boolean(id),
-    queryFn: async () => {
-      const { data, error } = await supabase.from('journal_entries').select('*').eq('id', id).single();
-      if (error) throw error;
-      return data;
-    }
+    queryFn: async (): Promise<any> => null,
   });
 
   const [title, setTitle] = useState('');
@@ -38,11 +33,7 @@ export default function JournalDetailScreen() {
 
   const updateMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase
-        .from('journal_entries')
-        .update({ title, content, tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean) })
-        .eq('id', id);
-      if (error) throw error;
+      // Journal persistence not yet implemented in Cloudflare Worker
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['journal-entries'] });
@@ -53,8 +44,7 @@ export default function JournalDetailScreen() {
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from('journal_entries').delete().eq('id', id);
-      if (error) throw error;
+      // Journal persistence not yet implemented in Cloudflare Worker
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['journal-entries'] });

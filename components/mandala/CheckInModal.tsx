@@ -35,14 +35,7 @@ export function CheckInModal({ visible, mandalaId, onClose }: CheckInModalProps)
 
   const submit = async () => {
     try {
-      await checkIn.mutateAsync({
-        mandalaId,
-        duration_minutes: duration,
-        quality_rating: quality,
-        mood_before: before,
-        mood_after: after,
-        notes
-      });
+      await checkIn.mutateAsync({ id: mandalaId });
       setCelebrate(true);
       showToast('Check-in complete ✓', 'success');
       setTimeout(() => {

@@ -107,7 +107,7 @@ export default function HomeScreen() {
 
   const totalStreakDays = mandalas?.reduce((sum, m) => sum + m.current_streak, 0) ?? 0;
   const activeCount = mandalas?.length ?? 0;
-  const displayName = profile?.full_name || user?.email?.split('@')[0] || 'Seeker';
+  const displayName = profile?.display_name || user?.email?.split('@')[0] || 'Seeker';
 
   return (
     <View style={{ flex: 1, backgroundColor: '#0F0F1A' }}>
