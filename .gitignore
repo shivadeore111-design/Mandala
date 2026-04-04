@@ -1,7 +1,32 @@
 node_modules/
 .expo/
-.env.local
-.DS_Store
-.env
+dist/
+web-build/
 
-assets/images/*.png
+# Environment — NEVER commit secrets
+.env
+.env.*
+!.env.example
+
+# EAS / Google Play
+google-service-account.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Logs
+*.log
+npm-debug.log*
+
+# Native
+android/
+ios/

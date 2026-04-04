@@ -1,190 +1,233 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-
-import { captureEvent } from '@/lib/analytics';
-import { scheduleCheckinReminder } from '@/lib/notifications';
-import { enqueueOfflineCheckin } from '@/lib/offlineQueue';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
-import { useUIStore } from '@/stores/uiStore';
-import { CheckInParams, CreateMandalaParams, Mandala, MandalaCheckin } from '@/types/mandala';
-import { checkAndAwardBadges } from '@/utils/badgeChecker';
 
-function isoDate(date: Date) {
-  return date.toISOString().slice(0, 10);
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+export interface Mandala {
+  id: string;
+  user_id: string;
+  practice_name: string;
+  practice_type: string;
+  practice_description: string;
+  practice_duration_minutes: number;
+  target_days: number;
+  start_date: string;
+  expected_end_date: string;
+  actual_end_date: string | null;
+  status: 'active' | 'completed' | 'broken' | 'paused';
+  completed_days: number;
+  current_streak: number;
+  broken_at: string | null;
+  broken_reason: string;
+  reminder_enabled: boolean;
+  reminder_time: string;
+  is_public: boolean;
+  last_checkin_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
-export function useActiveMandalas() {
-  const { user } = useAuthStore();
+export interface CheckIn {
+  id: string;
+  mandala_id: string;
+  user_id: string;
+  checkin_date: string;
+  day_number: number;
+  duration_minutes: number;
+  quality_rating: number | null;
+  notes: string | null;
+  mood_before: string | null;
+  mood_after: string | null;
+  created_at: string;
+}
 
-  return useQuery({
+export interface Profile {
+  id: string;
+  username: string;
+  full_name: string;
+  bio: string;
+  avatar_url: string;
+  total_mandalas_completed: number;
+  total_practice_days: number;
+  current_streak: number;
+  longest_streak: number;
+  push_token: string | null;
+  created_at: string;
+}
+
+const OFFLINE_QUEUE_KEY = 'mandala_offline_queue';
+
+// ─── Offline queue ────────────────────────────────────────────────────────────
+
+interface QueuedCheckIn {
+  mandalaId: string;
+  timestamp: string;
+}
+
+async function enqueueOfflineCheckIn(mandalaId: string) {
+  const raw = await AsyncStorage.getItem(OFFLINE_QUEUE_KEY);
+  const queue: QueuedCheckIn[] = raw ? JSON.parse(raw) : [];
+  queue.push({ mandalaId, timestamp: new Date().toISOString() });
+  await AsyncStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+}
+
+export async function flushOfflineQueue() {
+  const raw = await AsyncStorage.getItem(OFFLINE_QUEUE_KEY);
+  if (!raw) return;
+  const queue: QueuedCheckIn[] = JSON.parse(raw);
+  if (queue.length === 0) return;
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const remaining: QueuedCheckIn[] = [];
+
+  for (const item of queue) {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const { data: mandala } = await supabase
+        .from('mandalas')
+        .select('completed_days')
+        .eq('id', item.mandalaId)
+        .single();
+
+      const { error } = await supabase.from('mandala_checkins').insert({
+        mandala_id: item.mandalaId,
+        user_id: user.id,
+        checkin_date: today,
+        day_number: (mandala?.completed_days ?? 0) + 1,
+      });
+
+      if (!error) {
+        await supabase.rpc('increment_streak', { p_mandala_id: item.mandalaId });
+      } else {
+        remaining.push(item);
+      }
+    } catch {
+      remaining.push(item);
+    }
+  }
+
+  await AsyncStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(remaining));
+}
+
+// ─── Queries ──────────────────────────────────────────────────────────────────
+
+export function useMandalas() {
+  const user = useAuthStore((s) => s.user);
+  return useQuery<Mandala[]>({
     queryKey: ['mandalas', user?.id],
-    enabled: Boolean(user?.id),
-    staleTime: 30_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('mandalas')
-        .select('*, mandala_checkins(*)')
+        .select('*')
         .eq('user_id', user!.id)
         .eq('status', 'active')
         .order('created_at', { ascending: false });
-
       if (error) throw error;
-      return (data ?? []) as Mandala[];
-    }
+      return data as Mandala[];
+    },
+    enabled: !!user,
   });
 }
 
-export function useMandalaDetail(id?: string) {
-  const { user } = useAuthStore();
-
-  return useQuery({
-    queryKey: ['mandala', id],
-    enabled: Boolean(user?.id && id),
-    staleTime: 30_000,
+export function useRecentCheckIns(mandalaId: string) {
+  return useQuery<CheckIn[]>({
+    queryKey: ['checkins', mandalaId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('mandalas')
-        .select('*, mandala_checkins(*)')
-        .eq('id', id!)
-        .eq('user_id', user!.id)
-        .single();
-
+        .from('mandala_checkins')
+        .select('*')
+        .eq('mandala_id', mandalaId)
+        .order('checkin_date', { ascending: false })
+        .limit(40);
       if (error) throw error;
-      return data as Mandala;
-    }
+      return data as CheckIn[];
+    },
+    enabled: !!mandalaId,
   });
 }
 
+export function useProfile() {
+  const user = useAuthStore((s) => s.user);
+  return useQuery<Profile>({
+    queryKey: ['profile', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user!.id)
+        .single();
+      if (error) throw error;
+      return data as Profile;
+    },
+    enabled: !!user,
+  });
+}
+
+// ─── Mutations ────────────────────────────────────────────────────────────────
+
 export function useCreateMandala() {
-  const { user } = useAuthStore();
   const queryClient = useQueryClient();
+  const user = useAuthStore((s) => s.user);
 
   return useMutation({
-    mutationFn: async (params: CreateMandalaParams) => {
-      const startDate = new Date();
-      const expectedEnd = new Date(startDate);
-      expectedEnd.setDate(expectedEnd.getDate() + params.target_days - 1);
-
-      const { data, error } = await supabase
-        .from('mandalas')
-        .insert({
-          user_id: user!.id,
-          practice_name: params.practice_name,
-          practice_type: params.practice_type,
-          practice_description: params.practice_description ?? '',
-          practice_duration_minutes: params.practice_duration_minutes ?? 0,
-          target_days: params.target_days,
-          start_date: isoDate(startDate),
-          expected_end_date: isoDate(expectedEnd),
-          reminder_enabled: params.reminder_enabled,
-          reminder_time: params.reminder_time,
-          is_public: params.is_public
-        })
-        .select('*')
-        .single();
-
+    mutationFn: async (params: {
+      practice_name: string;
+      practice_type: string;
+      practice_description?: string;
+      target_days: number;
+    }) => {
+      const today = new Date().toISOString().split('T')[0];
+      const end = new Date();
+      end.setDate(end.getDate() + params.target_days);
+      const { error } = await supabase.from('mandalas').insert({
+        user_id: user!.id,
+        practice_name: params.practice_name,
+        practice_type: params.practice_type,
+        practice_description: params.practice_description ?? '',
+        target_days: params.target_days,
+        start_date: today,
+        expected_end_date: end.toISOString().split('T')[0],
+      });
       if (error) throw error;
-
-      if (data.reminder_enabled) await scheduleCheckinReminder(data.id, data.reminder_time);
-      captureEvent('mandala_created', { mandala_id: data.id });
-      return data as Mandala;
     },
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['mandalas'] }),
-        queryClient.invalidateQueries({ queryKey: ['profile'] })
-      ]);
-    }
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mandalas'] });
+    },
   });
 }
 
 export function useCheckIn() {
-  const { user } = useAuthStore();
-  const { showToast } = useUIStore();
   const queryClient = useQueryClient();
+  const user = useAuthStore((s) => s.user);
 
   return useMutation({
-    mutationFn: async (params: CheckInParams) => {
-      const { data: mandala, error: mandalaError } = await supabase
-        .from('mandalas')
-        .select('*')
-        .eq('id', params.mandalaId)
-        .eq('user_id', user!.id)
-        .single();
-      if (mandalaError) throw mandalaError;
-
-      const nextDay = mandala.completed_days + 1;
-      const today = isoDate(new Date());
-
-      const online = typeof navigator !== 'undefined' ? navigator.onLine : true;
-      if (!online) {
-        await enqueueOfflineCheckin({
-          mandala_id: params.mandalaId,
+    mutationFn: async (mandala: Mandala) => {
+      const today = new Date().toISOString().split('T')[0];
+      try {
+        const { error } = await supabase.from('mandala_checkins').insert({
+          mandala_id: mandala.id,
           user_id: user!.id,
           checkin_date: today,
-          day_number: nextDay,
-          duration_minutes: params.duration_minutes,
-          quality_rating: params.quality_rating,
-          notes: params.notes,
-          mood_before: params.mood_before,
-          mood_after: params.mood_after
+          day_number: mandala.completed_days + 1,
         });
-        return { id: `offline-${Date.now()}` } as MandalaCheckin;
+        if (error) throw error;
+        await supabase.rpc('increment_streak', { p_mandala_id: mandala.id });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.toLowerCase().includes('network') || message.toLowerCase().includes('fetch')) {
+          await enqueueOfflineCheckIn(mandala.id);
+        } else {
+          throw err;
+        }
       }
-
-      const { data: checkinData, error: checkinError } = await supabase
-        .from('mandala_checkins')
-        .insert({
-          mandala_id: params.mandalaId,
-          user_id: user!.id,
-          checkin_date: today,
-          day_number: nextDay,
-          duration_minutes: params.duration_minutes,
-          quality_rating: params.quality_rating,
-          notes: params.notes ?? '',
-          mood_before: params.mood_before,
-          mood_after: params.mood_after
-        })
-        .select('*')
-        .single();
-      if (checkinError) throw checkinError;
-
-      const isComplete = nextDay >= mandala.target_days;
-      const { error: updateError } = await supabase
-        .from('mandalas')
-        .update({
-          completed_days: nextDay,
-          current_streak: nextDay,
-          status: isComplete ? 'completed' : 'active',
-          actual_end_date: isComplete ? today : null
-        })
-        .eq('id', params.mandalaId)
-        .eq('user_id', user!.id);
-      if (updateError) throw updateError;
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id,badges,current_streak,total_mandalas_completed,total_journal_entries')
-        .eq('id', user!.id)
-        .single();
-      const { count } = await supabase.from('mandala_checkins').select('id', { count: 'exact', head: true }).eq('user_id', user!.id);
-      if (profile) {
-        const earned = await checkAndAwardBadges({ ...profile, total_checkins: count ?? 0 });
-        if (earned.length) showToast(`Badge earned: ${earned[0].name}`, 'success');
-      }
-
-      captureEvent(isComplete ? 'mandala_completed' : 'mandala_checkin', { mandala_id: params.mandalaId, day: nextDay });
-      return checkinData as MandalaCheckin;
     },
-    onSuccess: async (_data, variables) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['mandalas'] }),
-        queryClient.invalidateQueries({ queryKey: ['mandala', variables.mandalaId] }),
-        queryClient.invalidateQueries({ queryKey: ['profile'] })
-      ]);
+    onSuccess: (_data, mandala) => {
+      queryClient.invalidateQueries({ queryKey: ['mandalas'] });
+      queryClient.invalidateQueries({ queryKey: ['checkins', mandala.id] });
     },
-    onError: (error: any) => {
-      showToast(error?.message ?? 'Check-in failed', 'error');
-    }
   });
 }

@@ -1,43 +1,53 @@
 import { Tabs } from 'expo-router';
-import { Text, View } from 'react-native';
+import { Text } from 'react-native';
 
-import { useTheme } from '@/hooks/useTheme';
+function TabIcon({ emoji }: { emoji: string }) {
+  return <Text style={{ fontSize: 22 }}>{emoji}</Text>;
+}
 
-const tabs = [
-  { name: 'home', label: 'Home', icon: '⌂' },
-  { name: 'sadhana', label: 'Sadhana', icon: '◎' },
-  { name: 'mandala', label: 'Mandala', icon: '📿' },
-  { name: 'journal', label: 'Journal', icon: '✍' },
-  { name: 'gallery', label: 'Gallery', icon: '◇' },
-] as const;
-
-export default function TabsLayout() {
-  const theme = useTheme();
-
+export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border, height: 74 },
-        tabBarActiveTintColor: theme.colors.orange,
-        tabBarInactiveTintColor: theme.colors.text3,
+        tabBarStyle: {
+          backgroundColor: '#0F0F1A',
+          borderTopColor: '#1A1A2E',
+          borderTopWidth: 1,
+        },
+        tabBarActiveTintColor: '#AFA9EC',
+        tabBarInactiveTintColor: '#555577',
+        tabBarLabelStyle: { fontSize: 11, marginBottom: 4 },
       }}
     >
-      {tabs.map((tab) => (
-        <Tabs.Screen
-          key={tab.name}
-          name={tab.name}
-          options={{
-            title: tab.label,
-            tabBarIcon: ({ color, focused }) => (
-              <View style={{ alignItems: 'center', gap: 2 }}>
-                <Text style={{ color, fontSize: 16 }}>{tab.icon}</Text>
-                {focused ? <View style={{ width: 6, height: 6, borderRadius: 99, backgroundColor: theme.colors.orange }} /> : null}
-              </View>
-            ),
-          }}
-        />
-      ))}
+      <Tabs.Screen
+        name="home"
+        options={{
+          title: 'Home',
+          tabBarIcon: () => <TabIcon emoji="🏠" />,
+        }}
+      />
+      <Tabs.Screen
+        name="mandalas"
+        options={{
+          title: 'Mandalas',
+          tabBarIcon: () => <TabIcon emoji="🔱" />,
+        }}
+      />
+      <Tabs.Screen
+        name="community"
+        options={{
+          title: 'Community',
+          tabBarIcon: () => <TabIcon emoji="🌐" />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: () => <TabIcon emoji="👤" />,
+        }}
+      />
     </Tabs>
   );
 }
