@@ -25,7 +25,7 @@ export default function ProfileScreen() {
   const { user, signOut } = useAuthStore();
   const { data: profile, isLoading } = useProfile();
 
-  const displayName = profile?.full_name || user?.email?.split('@')[0] || 'Seeker';
+  const displayName = profile?.display_name || user?.email?.split('@')[0] || 'Seeker';
   const initials = getInitials(displayName);
 
   const handleSignOut = async () => {
@@ -70,17 +70,13 @@ export default function ProfileScreen() {
           {/* Stats */}
           <View style={{ flexDirection: 'row', gap: 12, marginBottom: 32 }}>
             <View style={{ flex: 1, backgroundColor: '#1A1A2E', borderRadius: 14, padding: 16, alignItems: 'center' }}>
-              <Text style={{ color: '#AFA9EC', fontWeight: '800', fontSize: 26 }}>
-                {profile?.total_mandalas_completed ?? 0}
-              </Text>
+              <Text style={{ color: '#AFA9EC', fontWeight: '800', fontSize: 26 }}>0</Text>
               <Text style={{ color: '#8888AA', fontSize: 12, marginTop: 4, textAlign: 'center' }}>
                 Mandalas completed
               </Text>
             </View>
             <View style={{ flex: 1, backgroundColor: '#1A1A2E', borderRadius: 14, padding: 16, alignItems: 'center' }}>
-              <Text style={{ color: '#AFA9EC', fontWeight: '800', fontSize: 26 }}>
-                {profile?.longest_streak ?? 0}
-              </Text>
+              <Text style={{ color: '#AFA9EC', fontWeight: '800', fontSize: 26 }}>0</Text>
               <Text style={{ color: '#8888AA', fontSize: 12, marginTop: 4, textAlign: 'center' }}>
                 🔥 Longest streak
               </Text>

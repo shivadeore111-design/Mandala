@@ -7,7 +7,7 @@ import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View, useCo
 import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { supabase } from '@/lib/supabase';
+import { updateProfile as apiUpdateProfile } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { useUIStore } from '@/stores/uiStore';
 import { COLORS } from '@/utils/colors';
@@ -23,23 +23,17 @@ export default function SettingsScreen() {
   const profileQuery = useQuery({
     queryKey: ['settings-profile', user?.id],
     enabled: Boolean(user?.id),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('avatar_url,bio,notification_daily_reminder,notification_community,notification_calendar,brahma_muhurta_alarm,brahma_muhurta_time,subscription_tier,location_visible')
-        .eq('id', user!.id)
-        .single();
-      if (error) throw error;
-      return data;
-    }
+    queryFn: async (): Promise<Record<string, any> | null> => null,
   });
 
   const [bio, setBio] = useState('');
 
   const updateProfile = useMutation({
-    mutationFn: async (patch: Record<string, any>) => {
-      const { error } = await supabase.from('profiles').update(patch).eq('id', user!.id);
-      if (error) throw error;
+    mutationFn: async (patch: Record<string, unknown>) => {
+      const supported: { display_name?: string; push_token?: string } = {};
+      if (typeof patch['display_name'] === 'string') supported.display_name = patch['display_name'];
+      if (typeof patch['push_token'] === 'string') supported.push_token = patch['push_token'];
+      if (Object.keys(supported).length > 0) await apiUpdateProfile(supported);
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['settings-profile'] });
@@ -62,12 +56,12 @@ export default function SettingsScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Card>
         <Text style={styles.section}>Profile</Text>
-        <Pressable onPress={pickAvatar}><Avatar uri={p?.avatar_url} name={user?.email ?? 'Seeker'} size={60} /></Pressable>
+        <Pressable onPress={pickAvatar}><Avatar uri={p?.['avatar_url'] as string | undefined} name={user?.email ?? 'Seeker'} size={60} /></Pressable>
         <TextInput
           style={styles.input}
           placeholder="Write your bio"
           placeholderTextColor={COLORS.TEXT_MUTED}
-          value={bio || p?.bio || ''}
+          value={bio || (p?.['bio'] as string | undefined) || ''}
           onChangeText={setBio}
           returnKeyType="done"
         />
@@ -75,23 +69,23 @@ export default function SettingsScreen() {
       </Card>
 
       <Card><Text style={styles.section}>Notifications</Text>
-        <Toggle label="Daily reminder" value={Boolean(p?.notification_daily_reminder)} onChange={(v) => updateProfile.mutate({ notification_daily_reminder: v })} />
-        <Toggle label="Community" value={Boolean(p?.notification_community)} onChange={(v) => updateProfile.mutate({ notification_community: v })} />
-        <Toggle label="Calendar" value={Boolean(p?.notification_calendar)} onChange={(v) => updateProfile.mutate({ notification_calendar: v })} />
+        <Toggle label="Daily reminder" value={Boolean(p?.['notification_daily_reminder'])} onChange={(v) => updateProfile.mutate({ notification_daily_reminder: v })} />
+        <Toggle label="Community" value={Boolean(p?.['notification_community'])} onChange={(v) => updateProfile.mutate({ notification_community: v })} />
+        <Toggle label="Calendar" value={Boolean(p?.['notification_calendar'])} onChange={(v) => updateProfile.mutate({ notification_calendar: v })} />
       </Card>
 
       <Card><Text style={styles.section}>Brahma Muhurta</Text>
-        <Toggle label="Alarm" value={Boolean(p?.brahma_muhurta_alarm)} onChange={(v) => updateProfile.mutate({ brahma_muhurta_alarm: v })} />
-        <TextInput style={styles.input} value={p?.brahma_muhurta_time ?? '05:00:00'} onChangeText={(v) => updateProfile.mutate({ brahma_muhurta_time: v })} keyboardType="numbers-and-punctuation" returnKeyType="done"/>
+        <Toggle label="Alarm" value={Boolean(p?.['brahma_muhurta_alarm'])} onChange={(v) => updateProfile.mutate({ brahma_muhurta_alarm: v })} />
+        <TextInput style={styles.input} value={(p?.['brahma_muhurta_time'] as string | undefined) ?? '05:00:00'} onChangeText={(v) => updateProfile.mutate({ brahma_muhurta_time: v })} keyboardType="numbers-and-punctuation" returnKeyType="done"/>
       </Card>
 
       <Card><Text style={styles.section}>Subscription</Text>
-        <Text style={styles.meta}>Current tier: {p?.subscription_tier ?? 'free'}</Text>
+        <Text style={styles.meta}>Current tier: {(p?.['subscription_tier'] as string | undefined) ?? 'free'}</Text>
         <Link href="/settings/subscription" asChild><Button title="Manage" /></Link>
       </Card>
 
       <Card><Text style={styles.section}>Privacy + Appearance</Text>
-        <Toggle label="Location visible" value={Boolean(p?.location_visible)} onChange={(v) => updateProfile.mutate({ location_visible: v })} />
+        <Toggle label="Location visible" value={Boolean(p?.['location_visible'])} onChange={(v) => updateProfile.mutate({ location_visible: v })} />
         <Toggle label="Light mode" value={lightMode} onChange={setLightMode} />
       </Card>
 

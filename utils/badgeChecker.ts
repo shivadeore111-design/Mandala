@@ -1,4 +1,3 @@
-import { supabase } from '@/lib/supabase';
 
 export const BADGES = [
   { id: 'first_checkin', name: 'First Flame', rarity: 'common', test: (p: ProfileStats) => p.total_checkins >= 1 },
@@ -26,20 +25,7 @@ export async function checkAndAwardBadges(profile: ProfileStats) {
   if (!newBadges.length) return [];
 
   const updated = [...earned, ...newBadges.map((b) => b.id)];
-  const { error } = await supabase.from('profiles').update({ badges: updated }).eq('id', profile.id);
-  if (error) throw error;
-
-  await Promise.all(
-    newBadges.map((badge) =>
-      supabase.from('notifications').insert({
-        user_id: profile.id,
-        title: 'Badge earned!',
-        body: `You unlocked ${badge.name}`,
-        notification_type: 'badge',
-        data: { badge_id: badge.id, rarity: badge.rarity }
-      })
-    )
-  );
+  // Badge persistence not yet implemented in Cloudflare Worker
 
   return newBadges;
 }

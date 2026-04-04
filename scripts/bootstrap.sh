@@ -100,21 +100,9 @@ prompt_secret EXPO_TOKEN \
   "Your Expo access token for CI builds." \
   "Run: eas login  then: eas whoami --token"
 
-prompt_plain SUPABASE_PROJECT_REF \
-  "Your Supabase project reference ID." \
-  "The subdomain in your Supabase URL: https://YOURREF.supabase.co"
-
-prompt_secret SUPABASE_SERVICE_ROLE_KEY \
-  "Service role key — bypasses RLS. Keep secret." \
-  "Supabase Dashboard → Project Settings → API → service_role"
-
-prompt_plain SUPABASE_URL \
-  "Your full Supabase project URL." \
-  "https://YOURREF.supabase.co"
-
-prompt_secret SUPABASE_ANON_KEY \
-  "Public anon key — safe to expose to clients." \
-  "Supabase Dashboard → Project Settings → API → anon public"
+prompt_plain EXPO_PUBLIC_API_URL \
+  "Your deployed Cloudflare Worker URL." \
+  "e.g. https://mandala-api.YOUR_SUBDOMAIN.workers.dev"
 
 prompt_secret CLOUDFLARE_API_TOKEN \
   "Cloudflare API token with Pages + DNS edit permissions." \
@@ -139,10 +127,7 @@ prompt_plain GITHUB_REPO \
 hdr "Step 3 — Writing .env"
 
 cat > .env <<EOF
-EXPO_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
-EXPO_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
-SUPABASE_PROJECT_REF=${SUPABASE_PROJECT_REF}
-SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL}
 EXPO_TOKEN=${EXPO_TOKEN}
 CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
 CLOUDFLARE_ACCOUNT_ID=${CLOUDFLARE_ACCOUNT_ID}
@@ -210,30 +195,28 @@ push_github_secret() {
 }
 
 if [ -n "$PK_RESPONSE" ]; then
-  push_github_secret "EXPO_TOKEN"                  "$EXPO_TOKEN"
-  push_github_secret "SUPABASE_PROJECT_REF"        "$SUPABASE_PROJECT_REF"
-  push_github_secret "SUPABASE_SERVICE_ROLE_KEY"   "$SUPABASE_SERVICE_ROLE_KEY"
-  push_github_secret "EXPO_PUBLIC_SUPABASE_URL"    "$SUPABASE_URL"
-  push_github_secret "EXPO_PUBLIC_SUPABASE_ANON_KEY" "$SUPABASE_ANON_KEY"
-  push_github_secret "CLOUDFLARE_API_TOKEN"        "$CLOUDFLARE_API_TOKEN"
-  push_github_secret "CLOUDFLARE_ACCOUNT_ID"       "$CLOUDFLARE_ACCOUNT_ID"
+  push_github_secret "EXPO_TOKEN"           "$EXPO_TOKEN"
+  push_github_secret "EXPO_PUBLIC_API_URL"  "$EXPO_PUBLIC_API_URL"
+  push_github_secret "CLOUDFLARE_API_TOKEN" "$CLOUDFLARE_API_TOKEN"
+  push_github_secret "CLOUDFLARE_ACCOUNT_ID" "$CLOUDFLARE_ACCOUNT_ID"
   STATUS_GITHUB_SECRETS="done"
   ok "All GitHub secrets pushed"
 fi
 
 # ────────────────────────────────────────────────────────────────────────────
-# STEP 5 — APPLY SUPABASE MIGRATION
+# STEP 5 — DEPLOY CLOUDFLARE WORKER
 # ────────────────────────────────────────────────────────────────────────────
-hdr "Step 5 — Applying Supabase migration"
+hdr "Step 5 — Deploying Cloudflare Worker"
 
-if SUPABASE_PROJECT_REF="$SUPABASE_PROJECT_REF" \
-   SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY" \
-   node scripts/migrate.js; then
+if (cd worker && npm ci && \
+    CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_TOKEN" \
+    CLOUDFLARE_ACCOUNT_ID="$CLOUDFLARE_ACCOUNT_ID" \
+    npx wrangler deploy); then
   STATUS_MIGRATION="done"
+  ok "Cloudflare Worker deployed"
 else
-  warn "Migration returned an error (may already be applied, or PAT required)."
-  warn "To apply manually: go to Supabase Dashboard → SQL Editor and run:"
-  warn "  supabase/migrations/002_push_tokens.sql"
+  warn "Worker deploy failed. To deploy manually:"
+  warn "  cd worker && npm ci && npx wrangler deploy"
   STATUS_MIGRATION="manual-required"
 fi
 
@@ -307,8 +290,7 @@ CF_PATCH=$(curl -sf \
     \"deployment_configs\": {
       \"production\": {
         \"env_vars\": {
-          \"EXPO_PUBLIC_SUPABASE_URL\":  {\"value\": \"${SUPABASE_URL}\"},
-          \"EXPO_PUBLIC_SUPABASE_ANON_KEY\": {\"value\": \"${SUPABASE_ANON_KEY}\"}
+          \"EXPO_PUBLIC_API_URL\": {\"value\": \"${EXPO_PUBLIC_API_URL}\"}
         }
       }
     }
@@ -435,7 +417,7 @@ echo -e "${BOLD}${CYAN}╚══════════════════
 echo ""
 echo -e "${BOLD}Automated steps:${RESET}"
 status_line "GitHub Actions secrets pushed"  "$STATUS_GITHUB_SECRETS"
-status_line "Supabase migration applied"      "$STATUS_MIGRATION"
+status_line "Cloudflare Worker deployed"      "$STATUS_MIGRATION"
 status_line "EAS project linked"             "$STATUS_EAS"
 status_line "Cloudflare Pages project"       "$STATUS_CF_PROJECT"
 status_line "DNS CNAME (mandala.taracod.com)" "$STATUS_CF_DNS"

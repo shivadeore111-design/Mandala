@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-import { supabase } from '@/lib/supabase';
+import { updateProfile } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 
 Notifications.setNotificationHandler({
@@ -40,10 +40,7 @@ export function usePushNotifications() {
 
       try {
         const tokenData = await Notifications.getExpoPushTokenAsync();
-        await supabase
-          .from('profiles')
-          .update({ push_token: tokenData.data })
-          .eq('id', user!.id);
+        await updateProfile({ push_token: tokenData.data });
       } catch {
         // Push token not required to proceed
       }

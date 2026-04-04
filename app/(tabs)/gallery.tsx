@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useTheme } from '@/hooks/useTheme';
-import { supabase } from '@/lib/supabase';
 import type { Artwork } from '@/types';
 
 const categories = ['All', 'Mandala', 'Yantra', 'Digital', 'Painting', 'Photography'];
@@ -15,21 +14,15 @@ export default function GalleryScreen() {
 
   const { data: artworks = [] } = useQuery({
     queryKey: ['artworks'],
-    queryFn: async () => {
-      const { data } = await supabase.from('artworks').select('*').limit(30);
-      return (data ?? []) as Artwork[];
-    },
+    queryFn: async (): Promise<Artwork[]> => [],
   });
 
   const { data: sponsored } = useQuery({
     queryKey: ['sponsored'],
-    queryFn: async () => {
-      const { data } = await supabase.from('sponsored_content').select('*').limit(1).maybeSingle();
-      return data as { brand_name?: string; description?: string } | null;
-    },
+    queryFn: async (): Promise<{ brand_name?: string; description?: string } | null> => null,
   });
 
-  const filtered = useMemo(() => artworks.filter((a) => (category === 'All' || a.category === category) && a.title.toLowerCase().includes(query.toLowerCase())), [artworks, category, query]);
+  const filtered = useMemo(() => artworks.filter((a) => (category === 'All' || a.art_type === category) && a.title.toLowerCase().includes(query.toLowerCase())), [artworks, category, query]);
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: theme.colors.background }} contentContainerStyle={styles.container}>
@@ -60,8 +53,8 @@ export default function GalleryScreen() {
             <View key={a.id} style={[styles.artCard, { backgroundColor: theme.colors.surface }, theme.shadow.raised]}>
               <View style={[styles.image, { backgroundColor: theme.colors.surface2 }]}><Text style={{ fontSize: 26 }}>🖼️</Text></View>
               <Text style={{ color: theme.colors.text, fontWeight: '700' }} numberOfLines={1}>{a.title}</Text>
-              <Text style={{ color: theme.colors.text3 }} numberOfLines={1}>@{a.artist_username ?? 'sadhaka'}</Text>
-              <Text style={{ color: theme.colors.green }}>{a.is_for_sale ? `₹${a.price ?? 0}` : 'Not for sale'}</Text>
+              <Text style={{ color: theme.colors.text3 }} numberOfLines={1}>@{a.profile?.username ?? 'sadhaka'}</Text>
+              <Text style={{ color: theme.colors.green }}>{a.is_for_sale ? `₹${a.price_inr ?? 0}` : 'Not for sale'}</Text>
             </View>
           ))}
         </View>

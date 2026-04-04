@@ -5,7 +5,6 @@ import { FlatList, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { COLORS } from '@/utils/colors';
 
@@ -18,42 +17,19 @@ export default function PostDetailScreen() {
   const postQuery = useQuery({
     queryKey: ['post-detail', id],
     enabled: Boolean(id),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('posts')
-        .select('id, content, post_type, created_at, profiles:user_id(username)')
-        .eq('id', id)
-        .single();
-      if (error) throw error;
-      return data as any;
-    }
+    queryFn: async (): Promise<any> => null,
   });
 
   const commentsQuery = useQuery({
     queryKey: ['post-comments', id],
     enabled: Boolean(id),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('comments')
-        .select('id, parent_comment_id, content, created_at, profiles:user_id(username)')
-        .eq('post_id', id)
-        .order('created_at', { ascending: true });
-      if (error) throw error;
-      return data ?? [];
-    }
+    queryFn: async (): Promise<any[]> => [],
   });
 
   const commentMutation = useMutation({
-    mutationFn: async ({ parentCommentId }: { parentCommentId?: string | null }) => {
-      if (!comment.trim()) throw new Error('Comment cannot be empty');
-      const { error } = await supabase.from('comments').insert({
-        post_id: id,
-        user_id: user!.id,
-        content: comment.trim(),
-        parent_comment_id: parentCommentId ?? null
-      });
-      if (error) throw error;
-      await supabase.from('posts').update({ comment_count: (postQuery.data?.comment_count ?? 0) + 1 }).eq('id', id);
+    mutationFn: async (_args: { parentCommentId?: string | null }) => {
+      // Community features not yet implemented in Cloudflare Worker
+      void user;
     },
     onSuccess: async () => {
       setComment('');

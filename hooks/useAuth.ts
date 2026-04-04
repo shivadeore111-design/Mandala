@@ -1,7 +1,7 @@
-import { PropsWithChildren, useEffect } from 'react';
+import { useEffect } from 'react';
+import { PropsWithChildren } from 'react';
 import { useRouter, useSegments } from 'expo-router';
 
-import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 
 export function useAuth() {
@@ -11,39 +11,15 @@ export function useAuth() {
 export function AuthProvider({ children }: PropsWithChildren) {
   const router = useRouter();
   const segments = useSegments();
-  const { session, setSession, setUser, setIsLoading } = useAuthStore();
+  const { session, initialized, initialize } = useAuthStore();
 
   useEffect(() => {
-    let mounted = true;
-
-    const loadSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!mounted) {
-        return;
-      }
-
-      setSession(data.session);
-      setUser(data.session?.user ?? null);
-      setIsLoading(false);
-    };
-
-    loadSession();
-
-    const {
-      data: { subscription }
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      setUser(nextSession?.user ?? null);
-      setIsLoading(false);
-    });
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, [setIsLoading, setSession, setUser]);
+    initialize();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
+    if (!initialized) return;
     const isAuthRoute = segments[0] === '(auth)';
 
     if (session && isAuthRoute) {
@@ -54,7 +30,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     if (!session && !isAuthRoute) {
       router.replace('/(auth)/welcome');
     }
-  }, [router, segments, session]);
+  }, [initialized, router, segments, session]);
 
   return children;
 }

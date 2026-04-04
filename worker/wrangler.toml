@@ -1,0 +1,16 @@
+name = "mandala-api"
+main = "src/index.ts"
+compatibility_date = "2024-05-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mandala-db"
+database_id = "378490fe-b526-4cf2-a620-1c6d4e6fa2fb"
+
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "a176f51f4abe498abfe5716cd5783e62"
+
+[vars]
+ENVIRONMENT = "production"

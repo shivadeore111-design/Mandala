@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useTheme } from '@/hooks/useTheme';
-import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import type { DailyContemplation, JournalEntry } from '@/types';
 
@@ -27,26 +26,19 @@ export default function JournalScreen() {
 
   const { data: prompt } = useQuery({
     queryKey: ['journal-prompt'],
-    queryFn: async () => {
-      const date = new Date().toISOString().slice(0, 10);
-      const { data } = await supabase.from('daily_contemplations').select('*').lte('date', date).order('date', { ascending: false }).limit(1).maybeSingle();
-      return data as DailyContemplation | null;
-    },
+    queryFn: async (): Promise<DailyContemplation | null> => null,
   });
 
   const { data: entries = [] } = useQuery({
     queryKey: ['journal', user?.id],
     enabled: !!user,
-    queryFn: async () => {
-      const { data } = await supabase.from('journal_entries').select('*').eq('user_id', user!.id).order('created_at', { ascending: false }).limit(20);
-      return (data ?? []) as JournalEntry[];
-    },
+    queryFn: async (): Promise<JournalEntry[]> => [],
   });
 
   const createEntry = useMutation({
     mutationFn: async () => {
-      if (!user) return;
-      await supabase.from('journal_entries').insert({ user_id: user.id, title, content, mood, energy });
+      // Journal persistence not yet implemented in Cloudflare Worker
+      void user; void title; void content; void mood; void energy;
     },
     onSuccess: () => {
       setOpen(false);
@@ -68,7 +60,7 @@ export default function JournalScreen() {
         <View key={entry.id} style={[styles.entry, { backgroundColor: theme.colors.surface }, theme.shadow.raised]}>
           <Text style={{ color: theme.colors.text, fontWeight: '700' }}>{entry.title}</Text>
           <Text style={{ color: theme.colors.text2 }} numberOfLines={2}>{entry.content}</Text>
-          <Text style={{ color: theme.colors.text3 }}>{entry.mood} · Energy {entry.energy}/5</Text>
+          <Text style={{ color: theme.colors.text3 }}>{entry.mood} · Energy {(entry as any).energy_level ?? 0}/5</Text>
         </View>
       ))}
 

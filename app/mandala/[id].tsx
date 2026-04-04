@@ -17,24 +17,18 @@ export default function MandalaDetailScreen() {
   const mandala = query.data;
 
   const stats = useMemo(() => {
-    const checkins = mandala?.mandala_checkins ?? [];
-    const best = checkins.reduce((acc, item) => (item.quality_rating && item.quality_rating > acc ? item.quality_rating : acc), 0);
-    const avgDuration = checkins.length
-      ? Math.round(checkins.reduce((acc, item) => acc + (item.duration_minutes ?? 0), 0) / checkins.length)
-      : 0;
-
     return {
-      bestQuality: best,
-      avgDuration
+      bestQuality: 0,
+      avgDuration: 0,
     };
-  }, [mandala?.mandala_checkins]);
+  }, []);
 
   useEffect(() => {
     if (!mandala || sentToComplete.current) {
       return;
     }
 
-    if (mandala.status === 'completed') {
+    if (mandala.completed_days >= mandala.target_days) {
       sentToComplete.current = true;
       router.replace({
         pathname: '/mandala/complete',
@@ -56,7 +50,7 @@ export default function MandalaDetailScreen() {
       <Text style={styles.title}>{mandala.practice_name}</Text>
       <MandalaRing completedDays={mandala.completed_days} targetDays={mandala.target_days} />
 
-      <MandalaGrid targetDays={mandala.target_days} checkins={mandala.mandala_checkins ?? []} startDate={mandala.start_date} />
+      <MandalaGrid targetDays={mandala.target_days} checkins={[]} startDate={mandala.created_at} />
 
       <View style={styles.statsRow}>
         <Stat label="Current streak" value={`${mandala.current_streak}`} />
@@ -64,7 +58,7 @@ export default function MandalaDetailScreen() {
         <Stat label="Avg duration" value={`${stats.avgDuration} min`} />
       </View>
 
-      <CheckInButton mandalaId={mandala.id} checkins={mandala.mandala_checkins ?? []} />
+      <CheckInButton mandalaId={mandala.id} checkins={[]} />
 
       <Text style={styles.warning}>Miss a day and the mandala breaks. This is authentic to the tradition.</Text>
     </ScrollView>
